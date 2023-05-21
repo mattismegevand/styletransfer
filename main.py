@@ -73,7 +73,7 @@ def main(args):
     sched.step()
 
     t.set_description(f"Steps {s}: {loss.item():.4f} - Content: {content_loss.item():.4f} - Style: {style_loss.item():.4f} - TV: {tv.item():.4f}")
-    if args.save_each is not None and s % args.save_each == 0:
+    if args.save_each != 0 and s % args.save_each == 0:
       img = tensor_to_img(gen, mean, std)
       img.save(Path(args.out) / f"{s}.jpg")
   img = tensor_to_img(gen, mean, std)
@@ -93,7 +93,7 @@ if __name__ == "__main__":
   parser.add_argument("--style_weight", type=float, default=1e5)
   parser.add_argument("--tv_weight", type=float, default=2)
   parser.add_argument("--steps", type=int, default=500)
-  parser.add_argument("--save_each", type=int, default=100)
+  parser.add_argument("--save_each", type=int, default=0)
   parser.add_argument("--gpu", action=argparse.BooleanOptionalAction, default=True)
   parser.add_argument("--out", type=str, default="out/img")
   args = parser.parse_args()
