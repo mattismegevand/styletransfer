@@ -17,6 +17,7 @@ def main(args):
   print(f"Using device: {device}")
 
   cnn = torchvision.models.vgg19(weights="IMAGENET1K_V1").features.to(device).eval()
+  cnn[0].padding_mode = 'replicate'
   for i, m in enumerate(cnn):
     if isinstance(m, nn.MaxPool2d):
       cnn[i] = nn.AvgPool2d(kernel_size=m.kernel_size, stride=m.stride, padding=m.padding)
@@ -40,6 +41,8 @@ def main(args):
 
   content_layers = [int(x) for x in args.content_layers.split(",")]
   style_layers = [int(x) for x in args.style_layers.split(",")]
+  style_weights = [int(x) for x in args.style_weights.split(",")]
+  style_weights = [x / sum(abs(w) for w in style_weights) for x in style_weights]
   layers_needed = list(set(content_layers + style_layers))
 
   cnn = cnn[:max(layers_needed)+1]
@@ -59,13 +62,15 @@ def main(args):
 
     content_loss = 0
     style_loss = 0
+    style_count = 0
     f = gen
     for i, layer in enumerate(cnn):
       f = layer(f)
       if i in content_layers:
         content_loss += content_losses[i](f)
       if i in style_layers:
-        style_loss += (1/len(style_layers)) * style_losses[i](f)
+        style_loss += style_weights[style_count] * style_losses[i](f)
+        style_count += 1
     tv = tv_loss(gen)
     loss = args.content_weight * content_loss + args.style_weight * style_loss + args.tv_weight * tv
     loss.backward()
@@ -87,10 +92,11 @@ if __name__ == "__main__":
   parser.add_argument("style", type=str)
   parser.add_argument("--content_layers", type=str, default="21")
   parser.add_argument("--style_layers", type=str, default="0,5,10,19,28")
-  parser.add_argument("--init", type=str, default="random")
+  parser.add_argument("--style_weights", type=str, default="256,64,16,4,1")
+  parser.add_argument("--init", type=str, default="random", choices=["random", "clone"])
   parser.add_argument("--lr", type=float, default=1e-1)
   parser.add_argument("--content_weight", type=float, default=5)
-  parser.add_argument("--style_weight", type=float, default=1e5)
+  parser.add_argument("--style_weight", type=float, default=1e4)
   parser.add_argument("--tv_weight", type=float, default=2)
   parser.add_argument("--steps", type=int, default=500)
   parser.add_argument("--save_each", type=int, default=0)
